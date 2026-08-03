@@ -1,0 +1,135 @@
+:root {
+  --bg: #f3f4f6;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+
+header.app-header { margin-bottom: 28px; }
+header.app-header h1 { margin: 0 0 4px; font-size: 24px; }
+header.app-header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.scan-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.scan-form input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.scan-form button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.scan-form button:hover { background: #1d4ed8; }
+
+.flash {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.meta-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+}
+.meta-card table { width: 100%; border-collapse: collapse; }
+.meta-card th { text-align: left; width: 150px; padding: 6px 0; color: var(--muted); font-weight: 500; font-size: 13px; }
+.meta-card td { padding: 6px 0; font-size: 13px; }
+
+.summary-chips { margin-bottom: 20px; }
+.chip {
+  display: inline-block;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  margin-right: 6px;
+  font-weight: 600;
+}
+
+.actions { margin-bottom: 20px; }
+.actions a {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+}
+.actions a:hover { border-color: var(--accent); color: var(--accent); }
+
+.finding {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.finding-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-left: 6px solid;
+  background: #fafafa;
+}
+.severity-badge {
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.finding-title { font-weight: 600; font-size: 14.5px; }
+.finding-body { padding: 6px 18px 16px; font-size: 13.5px; line-height: 1.55; }
+.finding-body p { margin: 6px 0; }
+.evidence {
+  margin-top: 8px;
+  background: #f3f4f6;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}

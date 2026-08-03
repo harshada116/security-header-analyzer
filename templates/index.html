@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Security Header Analyzer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <header class="app-header">
+    <h1>🔒 Security Header Analyzer</h1>
+    <p>Scan a website's HTTP response for missing or misconfigured security headers and cookie attributes.</p>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}
+        <div class="flash">{{ m }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form class="scan-form" method="post" action="{{ url_for('index') }}">
+    <input type="text" name="target" placeholder="https://example.com" required
+           value="{{ result.target if result else '' }}">
+    <button type="submit">Scan</button>
+  </form>
+
+  {% if result %}
+    {% if result.error %}
+      <div class="flash">Scan failed: {{ result.error }}</div>
+    {% else %}
+      <div class="meta-card">
+        <table>
+          <tr><th>Target</th><td>{{ result.target }}</td></tr>
+          <tr><th>Final URL</th><td>{{ result.final_url }}</td></tr>
+          <tr><th>HTTP Status</th><td>{{ result.status_code }}</td></tr>
+          <tr><th>HTTPS Enforced</th><td>{{ 'Yes' if result.used_https else 'No' }}</td></tr>
+        </table>
+      </div>
+
+      {% set counts = result.summary_counts() %}
+      <div class="summary-chips">
+        <span class="chip" style="background:#7f1d1d">Critical: {{ counts['Critical'] }}</span>
+        <span class="chip" style="background:#b91c1c">High: {{ counts['High'] }}</span>
+        <span class="chip" style="background:#c2410c">Medium: {{ counts['Medium'] }}</span>
+        <span class="chip" style="background:#a16207">Low: {{ counts['Low'] }}</span>
+        <span class="chip" style="background:#1d4ed8">Info: {{ counts['Informational'] }}</span>
+      </div>
+
+      <div class="actions">
+        <a href="{{ url_for('download_html', report_id=report_id) }}">⬇ Download HTML Report</a>
+        <a href="{{ url_for('download_pdf', report_id=report_id) }}">⬇ Download PDF Report</a>
+      </div>
+
+      <h2 style="font-size:16px;">Findings</h2>
+      {% set colors = {'Critical':'#7f1d1d','High':'#b91c1c','Medium':'#c2410c','Low':'#a16207','Informational':'#1d4ed8'} %}
+      {% for f in result.findings_sorted() %}
+        <div class="finding">
+          <div class="finding-header" style="border-left-color: {{ colors[f.severity] }}">
+            <span class="severity-badge" style="background: {{ colors[f.severity] }}">{{ f.severity }}</span>
+            <span class="finding-title">{{ f.title }}</span>
+          </div>
+          <div class="finding-body">
+            <p><strong>Description:</strong> {{ f.description }}</p>
+            <p><strong>Security Impact:</strong> {{ f.impact }}</p>
+            <p><strong>Remediation:</strong> {{ f.remediation }}</p>
+            <p><strong>OWASP Top 10:</strong> {{ f.owasp }}</p>
+            <p><strong>CWE:</strong> {{ f.cwe }}</p>
+            <p><strong>Standards:</strong> {{ f.standards }}</p>
+            {% if f.evidence %}
+              <div class="evidence"><strong>Evidence:</strong> {{ f.evidence }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <p>No issues found. All checked headers/cookies are configured securely.</p>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+</body>
+</html>

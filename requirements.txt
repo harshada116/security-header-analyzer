@@ -1,0 +1,7 @@
+Flask==3.0.3
+requests==2.32.3
+Jinja2==3.1.4
+gunicorn==22.0.0
+
+# PDF report export (requires system libs: Pango, Cairo, GDK-Pixbuf -- see docs/SETUP.md)
+weasyprint==62.3

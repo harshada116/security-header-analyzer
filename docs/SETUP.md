@@ -119,3 +119,23 @@ python -m unittest test_analyzer.py -v
 ```
 
 The test suite mocks all network calls, so it runs offline and quickly.
+It also includes a non-mocked regression test (`TestPdfExport`) that
+renders an actual PDF, so a broken WeasyPrint/pydyf dependency pair is
+caught immediately instead of surfacing as a silent 500 in production.
+
+## Troubleshooting
+
+**"Download PDF Report" fails or the button does nothing.**
+`requirements.txt` pins `pydyf<0.11` alongside `weasyprint==62.3` — newer
+`pydyf` releases (0.11+) changed an internal API that WeasyPrint 62.3
+depends on, causing `AttributeError: 'super' object has no attribute
+'transform'` at render time. If you've installed dependencies some other
+way (e.g. `pip install weasyprint` on its own, or an existing venv from
+before this pin was added), reinstall with:
+```bash
+pip install --force-reinstall -r requirements.txt
+```
+and confirm with `pip show pydyf` that the installed version is below
+0.11. The app also now surfaces PDF failures as a visible flash message
+instead of a blank error, so check that message for other causes (e.g.
+missing system libraries — see Prerequisites above).

@@ -104,5 +104,47 @@ class TestScanLogic(unittest.TestCase):
         self.assertIn("cookie_samesite_none_insecure", finding_ids)
 
 
+class TestPdfExport(unittest.TestCase):
+    """
+    Regression test for a real incident: weasyprint==62.3 combined with a
+    too-new pydyf (>=0.11) raises AttributeError during rendering (not at
+    import time), which previously was not caught and crashed the PDF
+    download route with an unhandled 500. This test exercises actual PDF
+    rendering (not mocked) so a bad dependency pin fails CI immediately.
+    """
+
+    def test_render_pdf_produces_a_pdf_file(self):
+        try:
+            import weasyprint  # noqa: F401
+        except ImportError:
+            self.skipTest("weasyprint not installed in this environment")
+
+        import tempfile
+        import report_generator
+
+        result = analyzer.ScanResult(
+            target="example.com",
+            final_url="https://example.com",
+            status_code=200,
+            used_https=True,
+            headers={"Server": "nginx"},
+        )
+        result.findings.append(analyzer.Finding.from_template("csp_missing"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = f"{tmp}/report.pdf"
+            try:
+                out_path = report_generator.render_pdf(result, path)
+            except report_generator.PdfExportError as exc:
+                self.fail(
+                    "render_pdf raised PdfExportError -- likely a "
+                    f"weasyprint/pydyf version mismatch: {exc}"
+                )
+            with open(out_path, "rb") as fh:
+                content = fh.read()
+            self.assertTrue(content.startswith(b"%PDF"), "output is not a valid PDF")
+            self.assertGreater(len(content), 500)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -75,7 +75,7 @@ def download_pdf(report_id):
     path = os.path.join(REPORTS_DIR, f"{report_id}.pdf")
     try:
         report_generator.render_pdf(result, path)
-    except ImportError as exc:
+    except report_generator.PdfExportError as exc:
         flash(str(exc))
         return redirect(url_for("index"))
     return send_file(path, as_attachment=True, download_name="security-header-report.pdf")

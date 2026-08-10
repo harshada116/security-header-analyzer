@@ -5,3 +5,4 @@ gunicorn==22.0.0
 
 # PDF report export (requires system libs: Pango, Cairo, GDK-Pixbuf -- see docs/SETUP.md)
 weasyprint==62.3
+pydyf<0.11  # weasyprint 62.3 is incompatible with pydyf>=0.11 (AttributeError at render time)

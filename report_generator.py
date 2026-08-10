@@ -110,22 +110,48 @@ def render_html(result: ScanResult) -> str:
 </html>"""
 
 
+class PdfExportError(RuntimeError):
+    """Raised when PDF export is unavailable or fails, with a message
+    safe to show directly to the user."""
+
+
 def render_pdf(result: ScanResult, output_path: str) -> str:
     """
-    Render the report to PDF using WeasyPrint. Raises ImportError with a
-    helpful message if WeasyPrint (and its system dependencies) are not
-    installed, since it depends on native libraries (Pango/Cairo) not
-    present in every environment.
+    Render the report to PDF using WeasyPrint.
+
+    Raises PdfExportError (with a user-facing message) if:
+      * WeasyPrint / its system dependencies (Pango, Cairo, GDK-Pixbuf)
+        are not installed, or
+      * WeasyPrint is installed but rendering fails for any other reason
+        (e.g. a version mismatch with one of its own dependencies such
+        as pydyf -- this has happened in practice and previously caused
+        an unhandled 500 error, so it is now caught explicitly).
     """
     try:
         from weasyprint import HTML  # imported lazily; optional dependency
     except ImportError as exc:  # pragma: no cover - environment dependent
-        raise ImportError(
+        raise PdfExportError(
             "PDF export requires WeasyPrint and its system dependencies "
             "(Pango, Cairo, GDK-Pixbuf). Install via 'pip install weasyprint' "
             "and the OS packages described in the WeasyPrint docs."
         ) from exc
+    except OSError as exc:  # pragma: no cover - environment dependent
+        # WeasyPrint raises OSError (not ImportError) when the *Python*
+        # package is installed but the native shared libraries it links
+        # against (Pango/Cairo/GDK-Pixbuf) are missing from the system.
+        raise PdfExportError(
+            "PDF export is installed but its system libraries "
+            "(Pango, Cairo, GDK-Pixbuf) are missing or broken. "
+            "See docs/SETUP.md for the required OS packages."
+        ) from exc
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    HTML(string=render_html(result)).write_pdf(output_path)
+    try:
+        HTML(string=render_html(result)).write_pdf(output_path)
+    except Exception as exc:
+        raise PdfExportError(
+            f"PDF rendering failed ({type(exc).__name__}: {exc}). "
+            "This usually means an incompatible WeasyPrint/pydyf version "
+            "pair is installed -- see requirements.txt and docs/SETUP.md."
+        ) from exc
     return output_path

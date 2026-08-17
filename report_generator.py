@@ -26,6 +26,24 @@ def _esc(value) -> str:
     return html.escape(str(value)) if value is not None else ""
 
 
+MAX_EVIDENCE_CHARS = 600
+
+
+def _esc_evidence(value) -> str:
+    """
+    Same as _esc, but caps rendered length. This is a report-layer
+    safety net independent of analyzer.py: even if some future finding
+    ends up with very long evidence (e.g. a large raw header value),
+    the report stays readable and doesn't balloon in size, instead of
+    relying solely on callers to keep evidence short.
+    """
+    text = str(value) if value is not None else ""
+    if len(text) > MAX_EVIDENCE_CHARS:
+        omitted = len(text) - MAX_EVIDENCE_CHARS
+        text = text[:MAX_EVIDENCE_CHARS] + f"... [{omitted} more characters omitted]"
+    return html.escape(text)
+
+
 def render_html(result: ScanResult) -> str:
     generated = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     counts = result.summary_counts()
@@ -51,7 +69,7 @@ def render_html(result: ScanResult) -> str:
         findings_rows = []
         for f in result.findings_sorted():
             color = SEVERITY_COLORS.get(f.severity, "#374151")
-            evidence = f"<div class='evidence'><strong>Evidence:</strong> {_esc(f.evidence)}</div>" if f.evidence else ""
+            evidence = f"<div class='evidence'><strong>Evidence:</strong> {_esc_evidence(f.evidence)}</div>" if f.evidence else ""
             findings_rows.append(f"""
             <div class="finding">
               <div class="finding-header" style="border-left-color:{color}">

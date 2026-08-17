@@ -69,7 +69,7 @@
             <p><strong>CWE:</strong> {{ f.cwe }}</p>
             <p><strong>Standards:</strong> {{ f.standards }}</p>
             {% if f.evidence %}
-              <div class="evidence"><strong>Evidence:</strong> {{ f.evidence }}</div>
+              <div class="evidence"><strong>Evidence:</strong> {{ f.evidence|truncate(600, True, '... [truncated]') }}</div>
             {% endif %}
           </div>
         </div>

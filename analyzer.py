@@ -52,8 +52,22 @@ class Finding:
     evidence: Optional[str] = None
 
     @classmethod
-    def from_template(cls, finding_id: str, evidence: str | None = None) -> "Finding":
-        tpl = FINDINGS[finding_id]
+    def from_template(cls, finding_id: str, evidence: str | None = None, context: str | None = None) -> "Finding":
+        """
+        Build a Finding from its findings_db template.
+
+        context: optional short label identifying *which* specific item
+        this finding is about (e.g. a cookie name). When multiple
+        findings share the same template -- which happens whenever a
+        site sets several cookies that are each missing the same
+        attribute -- the rendered title would otherwise be identical
+        across cards and the only way to tell them apart is reading the
+        evidence text at the bottom. Appending context to the title
+        makes each finding immediately distinguishable at a glance.
+        """
+        tpl = dict(FINDINGS[finding_id])
+        if context:
+            tpl["title"] = f"{tpl['title']} \u2014 {context}"
         return cls(id=finding_id, evidence=evidence, **tpl)
 
 
@@ -166,6 +180,36 @@ def _analyze_hsts(headers: dict, used_https: bool, findings: List[Finding]):
         findings.append(Finding.from_template("hsts_no_subdomains", evidence=value))
 
 
+def _extract_csp_directives(csp_value: str, needle: str) -> Optional[str]:
+    """
+    Return just the CSP directive segment(s) that contain `needle`,
+    rather than the entire policy. A production CSP can easily run to
+    several thousand characters; dumping the whole thing as "evidence"
+    for every individual finding it produces makes reports needlessly
+    bloated and forces the reader to hunt through it to see what
+    actually triggered each finding. Returns None if nothing matches.
+    """
+    matches = [
+        directive.strip()
+        for directive in csp_value.split(";")
+        if needle in directive.lower()
+    ]
+    return "; ".join(matches) if matches else None
+
+
+def _find_wildcard_directive(csp_value: str) -> Optional[str]:
+    """Return the specific directive that triggered the wildcard-source
+    check, rather than the whole policy."""
+    for directive in csp_value.split(";"):
+        stripped = directive.strip()
+        lowered = stripped.lower()
+        if re.search(r"(^|\s)\*(\s|;|$)", lowered + ";"):
+            return stripped
+        if lowered.startswith("default-src") and "https:" in lowered:
+            return stripped
+    return None
+
+
 def _analyze_csp(headers: dict, findings: List[Finding]):
     value = headers.get("content-security-policy")
     if not value:
@@ -173,13 +217,21 @@ def _analyze_csp(headers: dict, findings: List[Finding]):
         return
     lowered = value.lower()
     if "unsafe-inline" in lowered:
-        findings.append(Finding.from_template("csp_unsafe_inline", evidence=value))
+        findings.append(Finding.from_template(
+            "csp_unsafe_inline", evidence=_extract_csp_directives(value, "unsafe-inline")
+        ))
     if "unsafe-eval" in lowered:
-        findings.append(Finding.from_template("csp_unsafe_eval", evidence=value))
+        findings.append(Finding.from_template(
+            "csp_unsafe_eval", evidence=_extract_csp_directives(value, "unsafe-eval")
+        ))
     if re.search(r"(^|\s)\*(\s|;|$)", lowered) or "https:" in lowered.split(";")[0]:
-        findings.append(Finding.from_template("csp_wildcard_source", evidence=value))
+        findings.append(Finding.from_template(
+            "csp_wildcard_source", evidence=_find_wildcard_directive(value)
+        ))
     if "frame-ancestors" not in lowered:
-        findings.append(Finding.from_template("csp_missing_frame_ancestors", evidence=value))
+        # Absence of a directive has no specific segment to point to;
+        # omit evidence rather than dumping the entire policy.
+        findings.append(Finding.from_template("csp_missing_frame_ancestors"))
 
 
 def _analyze_xfo(headers: dict, csp_value: Optional[str], findings: List[Finding]):
@@ -217,13 +269,13 @@ def _analyze_permissions_policy(headers: dict, findings: List[Finding]):
 def _analyze_cookies(cookies: List[CookieAnalysis], findings: List[Finding]):
     for c in cookies:
         if not c.http_only:
-            findings.append(Finding.from_template("cookie_missing_httponly", evidence=f"{c.name}: {c.raw}"))
+            findings.append(Finding.from_template("cookie_missing_httponly", evidence=c.raw, context=c.name))
         if not c.secure:
-            findings.append(Finding.from_template("cookie_missing_secure", evidence=f"{c.name}: {c.raw}"))
+            findings.append(Finding.from_template("cookie_missing_secure", evidence=c.raw, context=c.name))
         if not c.samesite:
-            findings.append(Finding.from_template("cookie_missing_samesite", evidence=f"{c.name}: {c.raw}"))
+            findings.append(Finding.from_template("cookie_missing_samesite", evidence=c.raw, context=c.name))
         elif c.samesite.lower() == "none" and not c.secure:
-            findings.append(Finding.from_template("cookie_samesite_none_insecure", evidence=f"{c.name}: {c.raw}"))
+            findings.append(Finding.from_template("cookie_samesite_none_insecure", evidence=c.raw, context=c.name))
 
 
 def scan(target: str, check_vcs_exposure: bool = True) -> ScanResult:

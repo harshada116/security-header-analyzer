@@ -283,5 +283,77 @@ class TestVcsExposure(unittest.TestCase):
         self.assertIn("vcs_cvs_exposed", ids)
 
 
+class TestFindingClarity(unittest.TestCase):
+    """
+    Regression tests for report-quality issues found by inspecting a real
+    scan report (multiple cookies each missing SameSite rendered as
+    identical-looking cards; the full CSP header duplicated as evidence
+    across every CSP finding). Both made a correct scan look buggy.
+    """
+
+    @patch("analyzer._validate_target", side_effect=lambda u: u)
+    @patch("analyzer.requests.Session.get")
+    def test_multiple_cookies_with_same_issue_get_distinguishable_titles(self, mock_get, _validate):
+        mock_get.return_value = _mock_response(
+            "https://example.com/",
+            headers={
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+                "Content-Security-Policy": "default-src 'self'; frame-ancestors 'self'",
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "strict-origin-when-cross-origin",
+                "Permissions-Policy": "camera=()",
+            },
+            set_cookie_headers=[
+                "csrftoken=abc; Secure",
+                "mid=xyz; Secure; HttpOnly",
+            ],
+        )
+        result = analyzer.scan("https://example.com")
+        samesite_findings = [f for f in result.findings if f.id == "cookie_missing_samesite"]
+        self.assertEqual(len(samesite_findings), 2)
+        titles = {f.title for f in samesite_findings}
+        # Titles must differ (each should name its cookie) rather than
+        # being identical strings that only differ in buried evidence.
+        self.assertEqual(len(titles), 2)
+        self.assertTrue(any("csrftoken" in t for t in titles))
+        self.assertTrue(any("mid" in t for t in titles))
+
+    def test_csp_evidence_is_scoped_not_the_whole_policy(self):
+        long_csp = (
+            "default-src 'self' " + " ".join(f"*.example{i}.com" for i in range(100)) + ";"
+            "script-src 'self' 'unsafe-eval';"
+            "style-src 'self' 'unsafe-inline';"
+        )
+        findings = []
+        analyzer._analyze_csp({"content-security-policy": long_csp}, findings)
+
+        by_id = {f.id: f for f in findings}
+        self.assertIn("csp_unsafe_eval", by_id)
+        self.assertIn("csp_unsafe_inline", by_id)
+
+        # Evidence should be scoped to the relevant directive, not a dump
+        # of the (deliberately huge) full policy.
+        self.assertLess(len(by_id["csp_unsafe_eval"].evidence), len(long_csp))
+        self.assertIn("script-src", by_id["csp_unsafe_eval"].evidence)
+        self.assertNotIn("style-src", by_id["csp_unsafe_eval"].evidence)
+
+        self.assertLess(len(by_id["csp_unsafe_inline"].evidence), len(long_csp))
+        self.assertIn("style-src", by_id["csp_unsafe_inline"].evidence)
+        self.assertNotIn("script-src", by_id["csp_unsafe_inline"].evidence)
+
+    def test_report_html_truncates_oversized_evidence(self):
+        import report_generator
+
+        huge_evidence = "x" * 5000
+        result = analyzer.ScanResult(target="example.com", final_url="https://example.com")
+        result.findings.append(
+            analyzer.Finding.from_template("csp_unsafe_inline", evidence=huge_evidence)
+        )
+        html_out = report_generator.render_html(result)
+        self.assertNotIn(huge_evidence, html_out)
+        self.assertIn("more characters omitted", html_out)
+
+
 if __name__ == "__main__":
     unittest.main()

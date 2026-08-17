@@ -10,13 +10,15 @@
      `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`,
      `Permissions-Policy`, and every `Set-Cookie` header's `HttpOnly`,
      `Secure`, and `SameSite` attributes.
+   - Probe for publicly exposed version control metadata (`.git`,
+     `.svn`, `.hg`, `.bzr`, CVS, `.gitignore`) at the web root.
 4. Results appear inline: severity chip counts (Critical/High/Medium/
    Low/Informational) at the top, followed by one card per finding with:
    - Description of the issue
    - Security impact
    - Recommended remediation
-   - OWASP Top 10 category, CWE ID(s), and relevant standards (NIST,
-     PCI-DSS, OWASP ASVS, etc.)
+   - **OWASP Top 10:2025** category, CWE ID(s), and relevant standards
+     (NIST, PCI-DSS, OWASP ASVS, etc.)
 5. Use **Download HTML Report** / **Download PDF Report** to save a
    shareable report.
 

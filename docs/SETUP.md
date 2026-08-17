@@ -35,6 +35,13 @@ development (do not use in any shared/production environment).
 | `HEADER_ANALYZER_SECRET_KEY` | Flask session/flash signing key | random per-process |
 | `FLASK_DEBUG` | `1` enables Flask debug mode | `0` |
 
+The version-control exposure check (`.git`/`.svn`/`.hg`/`.bzr`/CVS/
+`.gitignore` probing) runs by default on every scan. It's a handful of
+extra lightweight `GET` requests to well-known static paths, isolated
+from the header/cookie checks so a network hiccup on these probes never
+blocks the rest of the scan. To disable it programmatically, call
+`analyzer.scan(target, check_vcs_exposure=False)`.
+
 For anything beyond local/single-user use, set `HEADER_ANALYZER_SECRET_KEY`
 explicitly and run behind a production WSGI server.
 

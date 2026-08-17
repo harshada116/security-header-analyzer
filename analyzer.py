@@ -226,13 +226,18 @@ def _analyze_cookies(cookies: List[CookieAnalysis], findings: List[Finding]):
             findings.append(Finding.from_template("cookie_samesite_none_insecure", evidence=f"{c.name}: {c.raw}"))
 
 
-def scan(target: str) -> ScanResult:
+def scan(target: str, check_vcs_exposure: bool = True) -> ScanResult:
     """
     Run a full header/cookie security scan against `target`.
 
     Returns a populated ScanResult. Network / validation errors are captured
     in ScanResult.error rather than raised, so callers (web UI, CLI, tests)
     can render a clean error message.
+
+    check_vcs_exposure: if True (default), also probes for publicly
+    exposed version control metadata (.git, .svn, .hg, .bzr, CVS,
+    .gitignore) at the target's web root. This issues a handful of extra
+    lightweight GET requests; set to False to skip them.
     """
     try:
         url = _validate_target(target)
@@ -280,5 +285,16 @@ def scan(target: str) -> ScanResult:
     _analyze_referrer_policy(headers_lower, result.findings)
     _analyze_permissions_policy(headers_lower, result.findings)
     _analyze_cookies(cookies, result.findings)
+
+    if check_vcs_exposure:
+        # Isolated in its own try/except: a network hiccup on the VCS
+        # probes should never prevent the header/cookie findings above
+        # from being returned.
+        try:
+            import vcs_exposure
+            vcs_result = vcs_exposure.check_version_control_exposure(response.url)
+            result.findings.extend(vcs_result.findings)
+        except requests.exceptions.RequestException:
+            pass
 
     return result
